@@ -20,22 +20,23 @@ func main() {
 
 		// Convert CRLF to LF (for Windows)
 		input = strings.Replace(input, "\r\n", "", -1)
+		args := strings.Split(input, " ")
 
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 
-		if val, ok := m[input]; ok {
-			val()
+		if val, ok := m[args[0]]; ok {
+			val(args[1:])
 		} else {
 			fmt.Printf("Command %s not found\n", input)
 		}
 	}
 }
 
-func registerFunctions() map[string]func() {
+func registerFunctions() map[string]func([]string) {
 	// probably need to change this since the functions will need to take args etc
-	m := make(map[string]func())
+	m := make(map[string]func([]string))
 	m["ls"] = ls
 	m["cd"] = cd
 

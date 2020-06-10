@@ -2,6 +2,6 @@ package main
 
 import "fmt"
 
-func cd() {
+func cd(args []string) {
 	fmt.Println("cd")
 }
