@@ -1,20 +1,25 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
+	"strconv"
 )
 
 type opts struct {
 	includeHidden bool
 	longListing   bool
+	humanReadable bool
 }
 
 func ls(args []string) {
-	opts := handleArgs(args)
+	opts, err := handleArgs("ls", args)
+	if err != nil {
+		return
+	}
 
 	// Get the current directory
 	wd, err := os.Getwd()
@@ -34,9 +39,16 @@ func ls(args []string) {
 			continue
 		}
 
+		var size string
+		if opts.humanReadable {
+			size = prettifySize(file.Size())
+		} else {
+			size = strconv.FormatInt(file.Size(), 10)
+		}
+
 		// Use long listing format
 		if opts.longListing {
-			fmt.Printf("%s %d %s %s\n", file.Mode(), file.Size(), file.ModTime().Format("Jan 2 15:04"), file.Name())
+			fmt.Printf("%s %s %s %s\n", file.Mode(), size, file.ModTime().Format("Jan 2 15:04"), file.Name())
 			continue
 		}
 
@@ -45,26 +57,41 @@ func ls(args []string) {
 	}
 }
 
-func handleArgs(args []string) opts {
+func handleArgs(command string, args []string) (opts, error) {
 	opts := opts{}
 
-	// For each additional argument
-	for _, i := range args {
-		// If the first character is "-", and the second character is NOT "-"
-		// Flags have been combined and we should split them
-		if string(i[0]) == "-" && string(i[1]) != "-" {
-			flags := strings.Split(i[1:], "")
+	fs := flag.NewFlagSet(command, flag.ContinueOnError)
+	fs.BoolVar(&opts.longListing, "l", false, "Long listing")
+	fs.BoolVar(&opts.includeHidden, "a", false, "Show all files")
+	fs.BoolVar(&opts.humanReadable, "h", false, "Human readable size")
 
-			for _, j := range flags {
-				switch j {
-				case "a":
-					opts.includeHidden = true
-				case "l":
-					opts.longListing = true
-				}
-			}
-		}
+	err := fs.Parse(args)
+
+	return opts, err
+}
+
+func prettifySize(b int64) string {
+	// Unit size
+	const unit = 1024
+
+	// If the input is less than 1KB, show bytes suffix
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
 	}
 
-	return opts
+	// Convert unit size to int64, initialize counter variable
+	div, exp := int64(unit), 0
+
+	// Keep dividing the input value by the unit size until it equals less than the unit size
+	for n := b / unit; n >= unit; n /= unit {
+		// Keep track of the total units we've divided by
+		div *= unit
+
+		// Increment the counter
+		exp++
+	}
+
+	// Divide the input value by the final count of units
+	// Use the counter for number of times divided to get the unit suffix
+	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
 }
