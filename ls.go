@@ -10,6 +10,7 @@ import (
 )
 
 type opts struct {
+	arguments     []string
 	includeHidden bool
 	longListing   bool
 	humanReadable bool
@@ -58,14 +59,20 @@ func ls(args []string) {
 }
 
 func handleArgs(command string, args []string) (opts, error) {
+	// Create new opts
 	opts := opts{}
 
+	// Create new flagset
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
+
+	// Register flags
 	fs.BoolVar(&opts.longListing, "l", false, "Long listing")
 	fs.BoolVar(&opts.includeHidden, "a", false, "Show all files")
 	fs.BoolVar(&opts.humanReadable, "h", false, "Human readable size")
 
+	//  Parse arguments into flags
 	err := fs.Parse(args)
+	opts.arguments = fs.Args()
 
 	return opts, err
 }
