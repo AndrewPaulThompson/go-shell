@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
 )
@@ -17,21 +16,15 @@ type opts struct {
 }
 
 func ls(args []string) {
-	opts, err := handleArgs("ls", args)
+	opts, err := splitArgs("ls", args)
 	if err != nil {
 		return
 	}
 
-	// Get the current directory
-	wd, err := os.Getwd()
+	files, err := getFileList(opts)
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Get files in the given directory
-	files, err := ioutil.ReadDir(wd)
-	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return
 	}
 
 	for _, file := range files {
@@ -58,7 +51,48 @@ func ls(args []string) {
 	}
 }
 
-func handleArgs(command string, args []string) (opts, error) {
+func getFileList(opts opts) ([]os.FileInfo, error) {
+	// If we have some arguments, we want to list those instead of the working directory
+	var files []os.FileInfo
+	if len(opts.arguments) > 0 {
+		for _, arg := range opts.arguments {
+			fileList, err := ioutil.ReadDir(arg)
+
+			// If we error here, we've tried to read a file, not a directory
+			if err != nil {
+				// So try to read the arg as a file instead
+				file, err := os.Stat(arg)
+				if err != nil {
+					// If we error here, we can't read the argument
+					// Return early to stop looping
+					return files, err
+				}
+
+				// Append this single file to the file slice
+				files = append(files, file)
+			}
+
+			// Append the files from ReadDir to the file slice
+			files = append(files, fileList...)
+		}
+	} else {
+		// Get the current directory
+		wd, err := os.Getwd()
+		if err != nil {
+			return files, err
+		}
+
+		// Get files in the working directory
+		files, err = ioutil.ReadDir(wd)
+		if err != nil {
+			return files, err
+		}
+	}
+
+	return files, nil
+}
+
+func splitArgs(command string, args []string) (opts, error) {
 	// Create new opts
 	opts := opts{}
 
