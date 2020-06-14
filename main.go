@@ -11,9 +11,19 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 	m := registerFunctions()
 
+	// Get the Home Directory and Working Directory
+	homeDir, _ := os.UserHomeDir()
+
 	for {
+		// If the home directory is in the working directory path, replace it with ~
+		workingDir, _ := os.Getwd()
+		dir := strings.Replace(workingDir, homeDir, "~", 1)
+
+		// Replace \ for /
+		dir = strings.Replace(dir, "\\", "/", -1)
+
 		// Command line prefix
-		fmt.Print("-> ")
+		fmt.Print(dir + ": ")
 
 		// Read the input until newline
 		input, err := reader.ReadString('\n')
