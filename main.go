@@ -23,7 +23,7 @@ func main() {
 		dir = strings.Replace(dir, "\\", "/", -1)
 
 		// Command line prefix
-		fmt.Print(dir + ": ")
+		fmt.Print(dir + "$ ")
 
 		// Read the input until newline
 		input, err := reader.ReadString('\n')

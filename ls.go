@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strconv"
+	"strings"
 )
 
 type opts struct {
@@ -13,6 +15,9 @@ type opts struct {
 	includeHidden bool
 	longListing   bool
 	humanReadable bool
+	sortByTime    bool
+	sortBySize    bool
+	doNotSort     bool
 }
 
 func ls(args []string) {
@@ -26,6 +31,8 @@ func ls(args []string) {
 		fmt.Println(err)
 		return
 	}
+
+	sortFiles(files, opts)
 
 	for _, file := range files {
 		// If this is a hidden file/directory AND we shouldn't show it, skip
@@ -48,6 +55,28 @@ func ls(args []string) {
 
 		// Default to just printing the name
 		fmt.Println(file.Name())
+	}
+}
+
+func sortFiles(files []os.FileInfo, opts opts) {
+	switch true {
+	case opts.doNotSort:
+		return
+	case opts.sortByTime:
+		sort.Slice(files, func(i, j int) bool {
+			return files[i].ModTime().After(files[j].ModTime())
+		})
+	case opts.sortBySize:
+		sort.Slice(files, func(i, j int) bool {
+			return files[i].Size() > files[j].Size()
+		})
+	default:
+		sort.Slice(files, func(i, j int) bool {
+			if strings.Compare(strings.ToLower(files[i].Name()), strings.ToLower(files[j].Name())) < 0 {
+				return true
+			}
+			return false
+		})
 	}
 }
 
@@ -103,6 +132,10 @@ func splitArgs(command string, args []string) (opts, error) {
 	fs.BoolVar(&opts.longListing, "l", false, "Long listing")
 	fs.BoolVar(&opts.includeHidden, "a", false, "Show all files")
 	fs.BoolVar(&opts.humanReadable, "h", false, "Human readable size")
+	fs.BoolVar(&opts.sortByTime, "t", false, "Sort files by time")
+	fs.BoolVar(&opts.sortBySize, "S", false, "Sort files by file size")
+	fs.BoolVar(&opts.doNotSort, "U", false, "Do not sort; list entries in directory order")
+	fs.BoolVar(&opts.doNotSort, "f", false, "Do not sort; list entries in directory order")
 
 	//  Parse arguments into flags
 	err := fs.Parse(args)
