@@ -175,7 +175,9 @@ func splitArgs(command string, args []string) (opts, error) {
 	// Register flags
 	fs.BoolVar(&opts.longListing, "l", false, "Long listing")
 	fs.BoolVar(&opts.includeHidden, "a", false, "Show all files")
+	fs.BoolVar(&opts.includeHidden, "all", false, "Show all files")
 	fs.BoolVar(&opts.humanReadable, "h", false, "Human readable size")
+	fs.BoolVar(&opts.humanReadable, "human-readable", false, "Human readable size")
 	fs.BoolVar(&opts.sortByTime, "t", false, "Sort files by time")
 	fs.BoolVar(&opts.sortBySize, "S", false, "Sort files by file size")
 	fs.BoolVar(&opts.sortByExtension, "X", false, "Sort alphabetically by entry extension")
