@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 )
@@ -11,8 +12,13 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 	m := registerFunctions()
 
-	// Get the Home Directory and Working Directory
+	// Get the Home Directory and change to it so we start there
 	homeDir, _ := os.UserHomeDir()
+	err := os.Chdir(homeDir)
+
+	if err != nil {
+		log.Panic(err)
+	}
 
 	for {
 		// If the home directory is in the working directory path, replace it with ~
@@ -49,6 +55,7 @@ func registerFunctions() map[string]func([]string) {
 	m := make(map[string]func([]string))
 	m["ls"] = ls
 	m["cd"] = cd
+	m["pwd"] = pwd
 
 	return m
 }
