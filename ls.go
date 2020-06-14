@@ -1,23 +1,28 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 )
 
 type opts struct {
-	arguments     []string
-	includeHidden bool
-	longListing   bool
-	humanReadable bool
-	sortByTime    bool
-	sortBySize    bool
-	doNotSort     bool
+	arguments       []string
+	includeHidden   bool
+	longListing     bool
+	humanReadable   bool
+	sortByTime      bool
+	sortBySize      bool
+	sortByExtension bool
+	doNotSort       bool
+	reverseSort     bool
+	sort            string
 }
 
 func ls(args []string) {
@@ -32,7 +37,11 @@ func ls(args []string) {
 		return
 	}
 
-	sortFiles(files, opts)
+	err = sortFiles(files, opts)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	for _, file := range files {
 		// If this is a hidden file/directory AND we shouldn't show it, skip
@@ -58,10 +67,26 @@ func ls(args []string) {
 	}
 }
 
-func sortFiles(files []os.FileInfo, opts opts) {
+func sortFiles(files []os.FileInfo, opts opts) error {
+	// If we have a sort by value
+	if opts.sort != "" {
+		switch opts.sort {
+		case "none":
+			opts.doNotSort = true
+		case "extension":
+			opts.sortByExtension = true
+		case "size":
+			opts.sortBySize = true
+		case "time":
+			opts.sortByTime = true
+		default:
+			return errors.New("Invalid sort type " + opts.sort)
+		}
+	}
+
 	switch true {
 	case opts.doNotSort:
-		return
+		return nil
 	case opts.sortByTime:
 		sort.Slice(files, func(i, j int) bool {
 			return files[i].ModTime().After(files[j].ModTime())
@@ -69,6 +94,16 @@ func sortFiles(files []os.FileInfo, opts opts) {
 	case opts.sortBySize:
 		sort.Slice(files, func(i, j int) bool {
 			return files[i].Size() > files[j].Size()
+		})
+	case opts.sortByExtension:
+		sort.Slice(files, func(i, j int) bool {
+			first := filepath.Ext(files[i].Name())
+			second := filepath.Ext(files[j].Name())
+
+			if strings.Compare(first, second) < 0 {
+				return true
+			}
+			return false
 		})
 	default:
 		sort.Slice(files, func(i, j int) bool {
@@ -78,6 +113,15 @@ func sortFiles(files []os.FileInfo, opts opts) {
 			return false
 		})
 	}
+
+	// Reverse the results if needed
+	if opts.reverseSort != false {
+		for i, j := 0, len(files)-1; i < j; i, j = i+1, j-1 {
+			files[i], files[j] = files[j], files[i]
+		}
+	}
+
+	return nil
 }
 
 func getFileList(opts opts) ([]os.FileInfo, error) {
@@ -134,8 +178,12 @@ func splitArgs(command string, args []string) (opts, error) {
 	fs.BoolVar(&opts.humanReadable, "h", false, "Human readable size")
 	fs.BoolVar(&opts.sortByTime, "t", false, "Sort files by time")
 	fs.BoolVar(&opts.sortBySize, "S", false, "Sort files by file size")
+	fs.BoolVar(&opts.sortByExtension, "X", false, "Sort alphabetically by entry extension")
 	fs.BoolVar(&opts.doNotSort, "U", false, "Do not sort; list entries in directory order")
 	fs.BoolVar(&opts.doNotSort, "f", false, "Do not sort; list entries in directory order")
+	fs.BoolVar(&opts.reverseSort, "r", false, "Reverse order while sorting")
+	fs.BoolVar(&opts.reverseSort, "reverse", false, "Reverse order while sorting")
+	fs.StringVar(&opts.sort, "sort", "", "Sort by WORD instead of name: none -U, extension -X, size -S, time -t")
 
 	//  Parse arguments into flags
 	err := fs.Parse(args)
