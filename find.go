@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"sync"
 )
 
 type findOptions struct {
@@ -12,9 +11,8 @@ type findOptions struct {
 	filename    string
 }
 
-var wg sync.WaitGroup
-
 func find(args []string) {
+	// Parse flags, arguments
 	opts := findOptions{}
 	err := opts.splitArgs("find", args)
 	if err != nil {
@@ -26,16 +24,21 @@ func find(args []string) {
 }
 
 func (opts findOptions) checkDir(dir string) {
+	// Read the current directory
 	fileList, err := ioutil.ReadDir(dir)
 	if err != nil {
 		fmt.Println(err)
 	}
 
+	// For each file/directory in this directory
 	for _, file := range fileList {
 		if file.IsDir() {
+			// If the file is a directory, search it
 			opts.checkDir(dir + "/" + file.Name())
 		} else {
+			// Else if the filename is what we're searching for
 			if file.Name() == opts.filename {
+				// Print the filepath from the starting directory
 				fmt.Println(dir + "/" + file.Name())
 			}
 		}
