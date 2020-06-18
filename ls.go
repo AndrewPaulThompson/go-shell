@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-type opts struct {
+type lsOpts struct {
 	arguments       []string
 	includeHidden   bool
 	longListing     bool
@@ -26,18 +26,19 @@ type opts struct {
 }
 
 func ls(args []string) {
-	opts, err := splitArgs("ls", args)
+	opts := lsOpts{}
+	err := opts.splitArgs("ls", args)
 	if err != nil {
 		return
 	}
 
-	files, err := getFileList(opts)
+	files, err := opts.getFileList()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = sortFiles(files, opts)
+	err = opts.sortFiles(files)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -67,7 +68,7 @@ func ls(args []string) {
 	}
 }
 
-func sortFiles(files []os.FileInfo, opts opts) error {
+func (opts lsOpts) sortFiles(files []os.FileInfo) error {
 	// If we have a sort by value
 	if opts.sort != "" {
 		switch opts.sort {
@@ -124,7 +125,7 @@ func sortFiles(files []os.FileInfo, opts opts) error {
 	return nil
 }
 
-func getFileList(opts opts) ([]os.FileInfo, error) {
+func (opts lsOpts) getFileList() ([]os.FileInfo, error) {
 	// If we have some arguments, we want to list those instead of the working directory
 	var files []os.FileInfo
 	if len(opts.arguments) > 0 {
@@ -165,10 +166,7 @@ func getFileList(opts opts) ([]os.FileInfo, error) {
 	return files, nil
 }
 
-func splitArgs(command string, args []string) (opts, error) {
-	// Create new opts
-	opts := opts{}
-
+func (opts *lsOpts) splitArgs(command string, args []string) error {
 	// Create new flagset
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
 
@@ -191,31 +189,5 @@ func splitArgs(command string, args []string) (opts, error) {
 	err := fs.Parse(args)
 	opts.arguments = fs.Args()
 
-	return opts, err
-}
-
-func prettifySize(b int64) string {
-	// Unit size
-	const unit = 1024
-
-	// If the input is less than 1KB, show bytes suffix
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
-	}
-
-	// Convert unit size to int64, initialize counter variable
-	div, exp := int64(unit), 0
-
-	// Keep dividing the input value by the unit size until it equals less than the unit size
-	for n := b / unit; n >= unit; n /= unit {
-		// Keep track of the total units we've divided by
-		div *= unit
-
-		// Increment the counter
-		exp++
-	}
-
-	// Divide the input value by the final count of units
-	// Use the counter for number of times divided to get the unit suffix
-	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
+	return err
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 )
@@ -14,11 +13,11 @@ func main() {
 
 	// Get the Home Directory and change to it so we start there
 	homeDir, _ := os.UserHomeDir()
-	err := os.Chdir(homeDir)
+	// err := os.Chdir(homeDir)
 
-	if err != nil {
-		log.Panic(err)
-	}
+	// if err != nil {
+	// 	log.Panic(err)
+	// }
 
 	for {
 		// If the home directory is in the working directory path, replace it with ~
@@ -45,7 +44,7 @@ func main() {
 		if val, ok := m[args[0]]; ok {
 			val(args[1:])
 		} else {
-			fmt.Printf("Command %s not found\n", input)
+			fmt.Printf("Command %s not found\n", args[0])
 		}
 	}
 }
@@ -56,6 +55,7 @@ func registerFunctions() map[string]func([]string) {
 	m["ls"] = ls
 	m["cd"] = cd
 	m["pwd"] = pwd
+	m["find"] = find
 
 	return m
 }
