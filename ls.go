@@ -23,6 +23,7 @@ type lsOpts struct {
 	doNotSort       bool
 	reverseSort     bool
 	sort            string
+	almostAll       bool
 }
 
 func ls(args []string) {
@@ -44,9 +45,28 @@ func ls(args []string) {
 		return
 	}
 
+	// Hacky? Prepend working and parent directory into filelist
+	working, parent := getImpliedDirs()
+	files = append([]os.FileInfo{parent}, files...)
+	files = append([]os.FileInfo{working}, files...)
+
 	for _, file := range files {
+		// If the current file is . or .., and we don't want to list them, skip
+		if opts.almostAll && (file == working || file == parent) {
+			continue
+		}
+
+		name := file.Name()
+
+		switch file {
+		case working:
+			name = "."
+		case parent:
+			name = ".."
+		}
+
 		// If this is a hidden file/directory AND we shouldn't show it, skip
-		if string(file.Name()[0]) == "." && opts.includeHidden == false {
+		if string(name[0]) == "." && opts.includeHidden == false {
 			continue
 		}
 
@@ -59,7 +79,7 @@ func ls(args []string) {
 
 		// Use long listing format
 		if opts.longListing {
-			fmt.Printf("%s %s %s %s\n", file.Mode(), size, file.ModTime().Format("Jan 2 15:04"), file.Name())
+			fmt.Printf("%s %s %s %s\n", file.Mode(), size, file.ModTime().Format("Jan 2 15:04"), name)
 			continue
 		}
 
@@ -69,22 +89,6 @@ func ls(args []string) {
 }
 
 func (opts lsOpts) sortFiles(files []os.FileInfo) error {
-	// If we have a sort by value
-	if opts.sort != "" {
-		switch opts.sort {
-		case "none":
-			opts.doNotSort = true
-		case "extension":
-			opts.sortByExtension = true
-		case "size":
-			opts.sortBySize = true
-		case "time":
-			opts.sortByTime = true
-		default:
-			return errors.New("Invalid sort type " + opts.sort)
-		}
-	}
-
 	switch true {
 	case opts.doNotSort:
 		return nil
@@ -166,6 +170,44 @@ func (opts lsOpts) getFileList() ([]os.FileInfo, error) {
 	return files, nil
 }
 
+func getImpliedDirs() (os.FileInfo, os.FileInfo) {
+	var workingDirInfo os.FileInfo
+	var parentDirInfo os.FileInfo
+
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	workingDirInfo = getDirectoryInfo(wd)
+	parentDirInfo = getDirectoryInfo(filepath.Dir(wd))
+
+	return workingDirInfo, parentDirInfo
+}
+
+func getDirectoryInfo(dirName string) os.FileInfo {
+	var info os.FileInfo
+
+	// Gets the parent directory
+	dir := filepath.Dir(dirName)
+
+	// Reads the files in the parent directory
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// For each file, check if the filename is the same as the base directory passed in
+	for _, file := range files {
+		if file.Name() == filepath.Base(dirName) {
+			info = file
+			break
+		}
+	}
+
+	return info
+}
+
 func (opts *lsOpts) splitArgs(command string, args []string) error {
 	// Create new flagset
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -184,10 +226,48 @@ func (opts *lsOpts) splitArgs(command string, args []string) error {
 	fs.BoolVar(&opts.reverseSort, "r", false, "Reverse order while sorting")
 	fs.BoolVar(&opts.reverseSort, "reverse", false, "Reverse order while sorting")
 	fs.StringVar(&opts.sort, "sort", "", "Sort by WORD instead of name: none -U, extension -X, size -S, time -t")
+	fs.BoolVar(&opts.almostAll, "A", false, "Do not list implied . and ..")
+	fs.BoolVar(&opts.almostAll, "almost-all", false, "Do not list implied . and ..")
 
 	//  Parse arguments into flags
 	err := fs.Parse(args)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	err = opts.validateSortOpts()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Override including of hidden files if almost all is passed
+	if opts.almostAll {
+		opts.includeHidden = true
+	}
+
 	opts.arguments = fs.Args()
 
 	return err
+}
+
+func (opts *lsOpts) validateSortOpts() error {
+	// Nothing to sort by, return
+	if opts.sort == "" {
+		return nil
+	}
+
+	switch opts.sort {
+	case "none":
+		opts.doNotSort = true
+	case "extension":
+		opts.sortByExtension = true
+	case "size":
+		opts.sortBySize = true
+	case "time":
+		opts.sortByTime = true
+	default:
+		return errors.New("Invalid sort type " + opts.sort)
+	}
+
+	return nil
 }
